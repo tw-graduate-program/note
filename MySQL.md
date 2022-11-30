@@ -249,7 +249,7 @@ FROM <table_name>
 WHERE conditions
 GROUP BY <colomn_name>
 HAVING condition
-GROUP BY <column_name>
+ORDER BY <column_name>
 LIMIT 1,5
 ```
 
@@ -275,7 +275,7 @@ Attention：WHERE 过滤行，HAVING 过滤分组
 
    ![image-20221114112218976](/Users/haodong.liu/Library/Application Support/typora-user-images/image-20221114112218976.png)
 
-7. 引擎（Inn哦DB & MyISAM）
+7. 引擎（InnoDB & MyISAM）
 8. 拆分 Sharding（垂直 & 水平）
 
 
