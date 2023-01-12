@@ -1,0 +1,228 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'Amazon SNS subscription SQS, Email & Lambda with DLQ and Alarms, LogGroup'
+Parameters:
+  AlarmEmail:
+    Default: 710116572@qq.com
+    Description: Email address
+    Type: String
+Resources:
+  MySNSTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      DisplayName: MySNSTopic
+      TopicName: MySNSTopic
+      FifoTopic: 'false'
+  MySQSSubscription:
+    Type: 'AWS::SNS::Subscription'
+    Properties:
+      TopicArn: !Ref MySNSTopic
+      Endpoint: !GetAtt MySQSQueue.Arn
+      Protocol: sqs
+      FilterPolicy:
+        Target:
+          - SQS
+  MyEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref MySNSTopic
+      Endpoint: !Ref AlarmEmail
+      Protocol: email
+      FilterPolicy:
+        Target:
+          - Email
+  MyLambdaSubscription:
+    Type: 'AWS::SNS::Subscription'
+    Properties:
+      TopicArn: !Ref MySNSTopic
+      Endpoint: !GetAtt MyFunction.Arn
+      Protocol: lambda
+      FilterPolicy:
+        Target:
+          - Lambda
+  MySQSQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 604800
+      DelaySeconds: 2
+      QueueName: MySQSQueue
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt MyDeadLetterQueue.Arn
+        maxReceiveCount: 5
+      VisibilityTimeout: 300
+  MyDeadLetterQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      QueueName: MyDeadLetterQueue
+  MyDeadLetterQueue2:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      QueueName: MyDeadLetterQueue2
+  MyRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub RootRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sqs:DeleteMessage'
+                  - 'sqs:GetQueueAttributes'
+                  - 'sqs:ReceiveMessage'
+                  - 'sqs:SendMessage'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+  MyFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Architectures:
+        - arm64
+      Code:
+        ZipFile: !Sub |
+          exports.handler = async (event, context) => {
+              console.log(event);
+              return {
+                  statusCode: 200,
+                  body: 'Hello, World!'
+              };
+          };
+      DeadLetterConfig:
+        TargetArn: !GetAtt MyDeadLetterQueue2.Arn
+      Description: 'AWS Lambda function'
+      Environment:
+        Variables:
+          databaseName: lambdadb
+          databaseUser: admin
+      EphemeralStorage:
+        Size: 512
+      FunctionName: MyFunction
+      Handler: index.handler
+      MemorySize: 128
+      PackageType: Zip
+      ReservedConcurrentExecutions: 2
+      Role: !GetAtt MyRole.Arn
+      Runtime: nodejs18.x
+      Timeout: 3
+      TracingConfig:
+        Mode: Active
+  MyFunction2:
+    Type: AWS::Serverless::Function
+    Properties:
+      InlineCode: |
+        exports.handler = async (event, context) => {
+            console.log(event);
+            return {
+                statusCode: 200,
+                body: 'Hello, World!'
+            };
+        };
+      Description: 'AWS Lambda function for SQS Queue'
+      EphemeralStorage:
+        Size: 512
+      FunctionName: MyFunction2
+      Handler: index.handler
+      MemorySize: 128
+      PackageType: Zip
+      ReservedConcurrentExecutions: 2
+      Role: !GetAtt MyRole.Arn
+      Runtime: nodejs18.x
+      Timeout: 3
+      Tracing: Active
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MySQSQueue.Arn
+            BatchSize: 1
+  MyLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['/', ['/aws/lambda', !Ref MyFunction]]
+      RetentionInDays: 7
+  MyLogGroup2:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${MyFunction2}"
+      RetentionInDays: 5
+  AlarmTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      DisplayName: AlarmTopic
+      TopicName: AlarmTopic
+      FifoTopic: 'false'
+      Subscription:
+        - Endpoint: !Ref AlarmEmail
+          Protocol: email
+  DeadLetterQueueAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopic
+      AlarmDescription: Alarm if dead-letter queue depth >= 10 messages
+      AlarmName: DeadLetterQueueAlarm
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt
+            - MyDeadLetterQueue
+            - QueueName
+      EvaluationPeriods: '1'
+      InsufficientDataActions:
+        - !Ref AlarmTopic
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: '300'
+      Statistic: Sum
+      Threshold: '10'
+      TreatMissingData: missing
+  QueueDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarm if queue depth increases to more than 10 messages"
+      Namespace: "AWS/SQS"
+      MetricName: "ApproximateNumberOfMessagesVisible"
+      Dimensions:
+        - Name: QueueName
+          Value: !Ref MyDeadLetterQueue2
+      Statistic: "Sum"
+      Period: "300"
+      EvaluationPeriods: "1"
+      Threshold: "10"
+      ComparisonOperator: "GreaterThanThreshold"
+      AlarmActions:
+        -
+          Ref: "AlarmTopic"
+      InsufficientDataActions:
+        -
+          Ref: "AlarmTopic"
+Outputs:
+  QueueURL:
+    Description: "URL of new Amazon SQS Queue"
+    Value:
+      Ref: "MyDeadLetterQueue"
+  QueueARN:
+    Description: "ARN of new AmazonSQS Queue"
+    Value:
+      Fn::GetAtt:
+        - "MyDeadLetterQueue"
+        - "Arn"
+  QueueName:
+    Description: "Name of new Amazon SQS Queue"
+    Value:
+      Fn::GetAtt:
+        - "MyDeadLetterQueue"
+        - "QueueName"
