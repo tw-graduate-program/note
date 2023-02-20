@@ -84,7 +84,9 @@ Verifying that a controller listens to a certain HTTP request is pretty straight
 
 2. Verifying Input Deserialization
 
-To verify that the input is successfully deserialized into Java objects, we have to provide it in the test request. Input can be either the JSON content of the request body (`@RequestBody`), a variable within the URL path (`@PathVariable`), or an HTTP request parameter (`@RequestParam`):
+To verify that the input is successfully deserialized into Java objects, we have to provide it in the test request. 
+
+**Input can be either the JSON content of the request body (`@RequestBody`), a variable within the URL path (`@PathVariable`), or an HTTP request parameter (`@RequestParam`):**
 
 ```java
     //2. Verifying Input Deserialization

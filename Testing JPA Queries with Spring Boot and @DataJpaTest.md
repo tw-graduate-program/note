@@ -40,7 +40,9 @@ interface UserRepository extends CrudRepository<UserEntity, Long> {
 
 
 
-## Inferred Queries
+___
+
+## 1. Inferred Queries
 
 ```java
 UserEntity findByName(String name);
@@ -50,7 +52,7 @@ Don’t need to tell Spring Data what to do, since it automatically infers the S
 
 
 
-## Custom JPQL Queries with @Query
+## 2. Custom JPQL Queries with @Query
 
 If queries become more complex, it makes sense to provide a custom JPQL query:
 
@@ -61,7 +63,7 @@ UserEntity findByNameCustomQuery(@Param("name") String name);
 
 
 
-## Native Queries with @Query
+## 3. Native Queries with @Query
 
 Another way is to use a *native query*: (原生查询)
 
