@@ -1,5 +1,19 @@
 # IDEA 快捷键
 
+- 使用常用快捷键，包括但不限于以下几种
+
+```yaml
+1. 切换最近修改文件（Mac: ⌘ + E / Windows: Ctrl + E）
+2. 补全代码（Mac: ⌥ + Enter / Windows: Alt + Enter）
+3. 提取变量 （Mac: ⌘ + ⌥ + V / Windows: Ctrl + Alt + V）
+4. 提取常量 （Mac: ⌘ + ⌥ + V / Windows: Ctrl + Alt + C）
+5. 提取方法 （Mac: ⌘ + ⌥ + M / Windows: Ctrl + Alt + M）
+6. 格式化代码 (Mac: ⌘ + ⌥ + L / Windows: Ctrl + Alt + L)
+7. 运行所有测试（Mac: Control + shift + R）
+```
+
+
+
 ```yaml
 mac全局搜索:
 command+空格(
@@ -87,4 +101,3 @@ F6
 计算表达式:
 Control+F8
 ```
-
